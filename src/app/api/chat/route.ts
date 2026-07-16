@@ -4,10 +4,9 @@ import { getOrCreateClerkUser } from '@/lib/database';
 
 export const maxDuration = 60;
 import { getComposioTools } from '@/lib/composio';
-import Anthropic from '@anthropic-ai/sdk';
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const MODEL = 'claude-sonnet-4-6';
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const MODEL = 'llama-3.3-70b-versatile';
 
 interface ChatTask {
   id: string;
@@ -124,21 +123,17 @@ Respond directly and concisely.`;
       { role: 'user', content: input },
     ];
 
-    const claudeMessages = messages
-      .filter((m: { role: string; content: string }) => m.role !== 'system')
-      .map((m: { role: string; content: string }) => ({
-        role: m.role as 'user' | 'assistant',
-        content: m.content,
-      }));
-
-    const claudeResponse = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: 800,
-      system: messages.find((m: { role: string; content: string }) => m.role === 'system')?.content,
-      messages: claudeMessages,
+    const groqRes = await fetch(GROQ_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ model: MODEL, max_tokens: 800, messages }),
     });
 
-    const reply = claudeResponse.content[0]?.type === 'text' ? claudeResponse.content[0].text : 'No response';
+    const groqData = await groqRes.json();
+    const reply = groqData.choices?.[0]?.message?.content ?? 'No response';
 
     const userTasks = inMemoryTasks.get(effectiveUserId) || [];
     userTasks.unshift({
