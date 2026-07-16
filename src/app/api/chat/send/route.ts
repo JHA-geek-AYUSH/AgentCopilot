@@ -1,9 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { getOrCreateClerkUser, createTask } from '@/lib/database';
 import { analyzeIntent, generatePlan } from '@/lib/claude';
 import { executeTask } from '@/lib/executor-enhanced';
 import { storeMemory, recallMemories } from '@/lib/hydra';
+
+export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
@@ -81,19 +83,19 @@ export async function POST(req: NextRequest) {
     // Fallback or explicit task/tool intents
     const title = message.substring(0, 50) + (message.length > 50 ? '...' : '');
     const task = await createTask(internalUser.id, message, title);
-    
-    // Background execution
-    // We don't await this, but we should make sure it doesn't get killed
-    // In Next.js, this is tricky, but for now we'll fire and forget
-    // A better way is using a separate worker or a more robust queue
-    (async () => {
+
+    // Execute synchronously within the 60s maxDuration window so Vercel
+    // doesn't kill the task. `after()` has a 15s cap on Hobby plans which
+    // is too short for multi-step Composio tasks.
+    after(async () => {
       try {
         await executeTask(task);
       } catch (e) {
         console.error('[ChatAPI] Background execution failed:', e);
       }
-    })();
+    });
 
+    // Return immediately so the client can start polling.
     return NextResponse.json({ 
       type: 'task_started', 
       taskId: task.id, 

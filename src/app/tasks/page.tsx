@@ -11,14 +11,10 @@ import {
   Search,
   RefreshCw,
   Loader2,
-  AlertCircle,
+  Trash2,
   CheckCircle2,
-  Clock,
-  ChevronDown,
-  ChevronRight,
-  Brain,
-  ArrowRight,
   XCircle,
+  Brain,
 } from 'lucide-react';
 import type { DbTask, TaskPlan } from '@/types/database';
 import { useUser } from '@clerk/nextjs';
@@ -33,6 +29,7 @@ export default function TasksPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
+  const [isClearingStuck, setIsClearingStuck] = useState(false);
 
   const fetchTasks = useCallback(async () => {
     if (!isSignedIn) return;
@@ -59,6 +56,27 @@ export default function TasksPage() {
       setIsLoading(false);
     }
   }, [isLoaded, isSignedIn, fetchTasks]);
+
+  const handleDeleteTask = (id: string) => {
+    setTasks(prev => prev.filter(t => t.id !== id));
+  };
+
+  // Stuck = running for more than 2 minutes
+  const stuckTasks = tasks.filter(t => {
+    if (t.status !== 'running') return false;
+    const age = Date.now() - new Date(t.created_at).getTime();
+    return age > 2 * 60 * 1000;
+  });
+
+  const handleClearStuck = async () => {
+    if (isClearingStuck || stuckTasks.length === 0) return;
+    setIsClearingStuck(true);
+    await Promise.allSettled(
+      stuckTasks.map(t => fetch(`/api/tasks/${t.id}`, { method: 'DELETE' }))
+    );
+    setTasks(prev => prev.filter(t => !stuckTasks.some(s => s.id === t.id)));
+    setIsClearingStuck(false);
+  };
 
   const filteredTasks = tasks.filter((task) => {
     const matchesSearch =
@@ -265,6 +283,21 @@ export default function TasksPage() {
             className="pl-9 rounded-xl bg-card border-border/50"
           />
         </div>
+        {stuckTasks.length > 0 && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="rounded-xl gap-1.5 border-red-500/30 text-red-500 hover:bg-red-500/10 hover:text-red-500"
+            onClick={handleClearStuck}
+            disabled={isClearingStuck}
+          >
+            {isClearingStuck
+              ? <Loader2 className="size-4 animate-spin" />
+              : <Trash2 className="size-4" />
+            }
+            Clear stuck ({stuckTasks.length})
+          </Button>
+        )}
         <Button 
           size="sm" 
           variant="outline" 
@@ -314,7 +347,7 @@ export default function TasksPage() {
           </div>
         ) : (
           filteredTasks.map((task) => (
-            <TaskCard key={task.id} task={task as any} initiallyExpanded={expandedTaskId === task.id} />
+            <TaskCard key={task.id} task={task as any} initiallyExpanded={expandedTaskId === task.id} onDelete={handleDeleteTask} />
           ))
         )}
       </div>

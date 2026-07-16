@@ -148,7 +148,20 @@ export default function ChatPage() {
     // Clear any existing polling for this task
     if (pollingIntervals.current[taskId]) clearInterval(pollingIntervals.current[taskId]);
 
+    let attempts = 0;
+    const MAX_ATTEMPTS = 60; // ~60s max before giving up
+
     const poll = async () => {
+      attempts++;
+      if (attempts >= MAX_ATTEMPTS) {
+        clearInterval(pollingIntervals.current[taskId]);
+        setMessages(prev => prev.map(m =>
+          m.id === messageId ? { ...m, content: 'The task is taking too long. Please try again.', status: 'error' } : m
+        ));
+        setIsThinking(false);
+        return;
+      }
+
       try {
         const res = await fetch(`/api/tasks/${taskId}`);
         const data = await res.json();

@@ -12,7 +12,8 @@ import {
   Reply,
   Copy,
   Search,
-  Check
+  Check,
+  Trash2
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -51,15 +52,17 @@ interface TaskCardProps {
     error?: string;
   };
   initiallyExpanded?: boolean;
+  onDelete?: (id: string) => void;
 }
 
-export function TaskCard({ task, initiallyExpanded = false }: TaskCardProps) {
+export function TaskCard({ task, initiallyExpanded = false, onDelete }: TaskCardProps) {
   const router = useRouter();
   const [isExpanded, setIsExpanded] = useState(initiallyExpanded);
   const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set());
   const [expandedEmails, setExpandedEmails] = useState<Set<number>>(new Set());
   const [showAllEmails, setShowAllEmails] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const result = task.result;
   const steps = result?.steps || [];
@@ -107,6 +110,19 @@ export function TaskCard({ task, initiallyExpanded = false }: TaskCardProps) {
   const navigateToHome = (query: string) => {
     const encoded = encodeURIComponent(query);
     router.push(`/?q=${encoded}`);
+  };
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isDeleting) return;
+    setIsDeleting(true);
+    try {
+      await fetch(`/api/tasks/${task.id}`, { method: 'DELETE' });
+      onDelete?.(task.id);
+    } catch (err) {
+      console.error('[TaskCard] Delete failed:', err);
+      setIsDeleting(false);
+    }
   };
 
   const getTaskPreview = () => {
@@ -347,6 +363,19 @@ export function TaskCard({ task, initiallyExpanded = false }: TaskCardProps) {
             </h3>
             <div className="flex items-center gap-2">
               <StatusBadge status={task.status} />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7 text-muted-foreground/40 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                onClick={handleDelete}
+                disabled={isDeleting}
+                title="Delete task"
+              >
+                {isDeleting
+                  ? <Loader2 className="size-3.5 animate-spin" />
+                  : <Trash2 className="size-3.5" />
+                }
+              </Button>
               <div className="text-muted-foreground/60">
                 {isExpanded ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
               </div>
