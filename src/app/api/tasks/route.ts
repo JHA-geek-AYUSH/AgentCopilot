@@ -3,6 +3,8 @@ import { auth } from '@clerk/nextjs/server';
 import { getOrCreateClerkUser, getTasks } from '@/lib/database';
 import { createAndExecuteTask } from '@/lib/executor-enhanced';
 
+export const maxDuration = 60;
+
 export async function POST(request: NextRequest) {
   try {
     const { userId: clerkUserId } = await auth();

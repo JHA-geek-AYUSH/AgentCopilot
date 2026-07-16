@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { getOrCreateClerkUser } from '@/lib/database';
+
+export const maxDuration = 60;
 import { getComposioTools } from '@/lib/composio';
 import Anthropic from '@anthropic-ai/sdk';
 

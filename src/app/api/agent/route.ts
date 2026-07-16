@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { getAgentOrchestrator } from '@/lib/agent/orchestrator';
+
+export const maxDuration = 60;
 import { getBackgroundTaskManager } from '@/lib/agent/background-tasks';
 import { getOrCreateClerkUser } from '@/lib/database';
 import { executeTool } from '@/lib/tools-enhanced';
